@@ -5,12 +5,15 @@ import geopandas as gpd
 from loguru import logger
 from shapely.geometry import shape
 
-from app.indicators_savior.indicators_savior_services.indicators_savior_api_service import indicators_savior_api_service
-from .dto import IndicatorsDTO
-from app.prioc.services import prioc_service
 from app.grid_generator.services.potential_estimator import potential_estimator
-from .indicators_savior_services.indicators_constants import objects_name_id_map
+from app.indicators_savior.indicators_savior_services.indicators_savior_api_service import (
+    indicators_savior_api_service,
+)
+from app.prioc.services import prioc_service
+
 from ..common import http_exception
+from .dto import IndicatorsDTO
+from .indicators_savior_services.indicators_constants import objects_name_id_map
 
 
 # ToDo rewrite whole service.
@@ -18,8 +21,7 @@ class IndicatorsSaviorService:
 
     @staticmethod
     async def post_potentials(
-            potential_ter_estimation: dict,
-            project_scenario_id: int
+        potential_ter_estimation: dict, project_scenario_id: int
     ) -> None:
 
         potentials_id_map = await indicators_savior_api_service.get_name_id_map(269)
@@ -35,12 +37,11 @@ class IndicatorsSaviorService:
                 "value": value,
                 "comment": None,
                 "information_source": "hextech/potential",
-                "properties": {}
+                "properties": {},
             }
             async_task_list.append(
                 indicators_savior_api_service.put_indicator(
-                    scenario_id=project_scenario_id,
-                    json_data=first_to_put
+                    scenario_id=project_scenario_id, json_data=first_to_put
                 )
             )
 
@@ -48,8 +49,8 @@ class IndicatorsSaviorService:
 
     @staticmethod
     async def post_all(
-            prioc_ter_estimation: dict,
-            project_scenario_id: int,
+        prioc_ter_estimation: dict,
+        project_scenario_id: int,
     ) -> None:
 
         async_task_list = []
@@ -65,64 +66,60 @@ class IndicatorsSaviorService:
                 "value": value,
                 "comment": comment,
                 "information_source": "hextech/prioc",
-                "properties": {}
+                "properties": {},
             }
             async_task_list.append(
                 indicators_savior_api_service.put_indicator(
-                    scenario_id=project_scenario_id,
-                    json_data=first_to_put
+                    scenario_id=project_scenario_id, json_data=first_to_put
                 )
             )
 
         await asyncio.gather(*async_task_list)
 
-    @staticmethod
-    async def save_indicator(
-            project_scenario_id: int,
-            indicators_name: str,
-            indicators_value: int | float,
-            indicators_comment: str="--"
-    ):
-        match indicators_name:
-            case "Обеспечение инженерной инфраструктурой":
-                indicator_id = 204
-                indicator_source = "TownsNet/engineering"
-            case "Население":
-                indicator_id = 197
-                indicator_source = "PopFrame"
-            case "Социальное обеспечение":
-                indicator_id =  200
-                indicator_source = "Townsnet/provision"
-            case "Транспортное обеспечение":
-                indicator_id = 198
-                indicator_source = "TransportFrame"
-            case _ : raise http_exception(
-                500,
-                msg="Unknown source to save",
-                _input= indicators_name,
-                _detail={}
-            )
-
-        data_to_put = {
-            "indicator_id": indicator_id,
-            "scenario_id": project_scenario_id,
-            "territory_id": None,
-            "hexagon_id": None,
-            "value": indicators_value,
-            "comment": indicators_comment[:2000],
-            "information_source": indicator_source,
-            "properties": {}
-        }
-        await indicators_savior_api_service.put_indicator(
-            scenario_id=project_scenario_id,
-            json_data=data_to_put
-        )
+    # @staticmethod
+    # async def save_indicator(
+    #         project_scenario_id: int,
+    #         indicators_name: str,
+    #         indicators_value: int | float,
+    #         indicators_comment: str="--"
+    # ):
+    #     match indicators_name:
+    #         case "Обеспечение инженерной инфраструктурой":
+    #             indicator_id = 204
+    #             indicator_source = "TownsNet/engineering"
+    #         case "Население":
+    #             indicator_id = 197
+    #             indicator_source = "PopFrame"
+    #         case "Социальное обеспечение":
+    #             indicator_id =  200
+    #             indicator_source = "Townsnet/provision"
+    #         case "Транспортное обеспечение":
+    #             indicator_id = 198
+    #             indicator_source = "TransportFrame"
+    #         case _ : raise http_exception(
+    #             500,
+    #             msg="Unknown source to save",
+    #             _input= indicators_name,
+    #             _detail={}
+    #         )
+    #
+    #     data_to_put = {
+    #         "indicator_id": indicator_id,
+    #         "scenario_id": project_scenario_id,
+    #         "territory_id": None,
+    #         "hexagon_id": None,
+    #         "value": indicators_value,
+    #         "comment": indicators_comment[:2000],
+    #         "information_source": indicator_source,
+    #         "properties": {}
+    #     }
+    #     await indicators_savior_api_service.put_indicator(
+    #         scenario_id=project_scenario_id,
+    #         json_data=data_to_put
+    #     )
 
     async def save_potential_and_base_indicators(
-            self,
-            scenario_id: int,
-            territory_id: int,
-            territory: dict
+        self, scenario_id: int, territory_id: int, territory: dict
     ) -> None:
         """
         Function calculates potential and saves result to db
@@ -154,24 +151,26 @@ class IndicatorsSaviorService:
             indicators_savior_api_service.get_ecological_evaluation(
                 territory_id=territory_id,
                 json_data=territory,
-            )
+            ),
         ]
         indicators_values = await asyncio.gather(*tasks)
         indicators_dict = {}
         for indicator in indicators_values:
             for key, value in indicator.items():
                 indicators_dict[key] = value
-                if key != "Экологическая ситуация":
-                    await self.save_indicator(scenario_id, key, value)
-        result_dict = await potential_estimator.estimate_potentials_as_dict(indicators_dict)
+                # if key != "Экологическая ситуация":
+                #     await self.save_indicator(scenario_id, key, value)
+        result_dict = await potential_estimator.estimate_potentials_as_dict(
+            indicators_dict
+        )
         await self.post_potentials(result_dict, scenario_id)
         logger.info("Saved all potential indicators")
 
     @staticmethod
     async def save_recultivation(
-            area: dict,
-            base_scenario_id: int,
-            target_scenario_id: int,
+        area: dict,
+        base_scenario_id: int,
+        target_scenario_id: int,
     ) -> None:
         """
         Save all recultivation results
@@ -184,10 +183,12 @@ class IndicatorsSaviorService:
             None
         """
 
-        recultivation_data = await indicators_savior_api_service.get_recultivation_marks(
-            area=area,
-            base_scenario_id=base_scenario_id,
-            target_scenario_id=target_scenario_id
+        recultivation_data = (
+            await indicators_savior_api_service.get_recultivation_marks(
+                area=area,
+                base_scenario_id=base_scenario_id,
+                target_scenario_id=target_scenario_id,
+            )
         )
 
         time_estimation = {
@@ -198,36 +199,34 @@ class IndicatorsSaviorService:
             "value": recultivation_data["data"]["recultivation"]["total"]["timeOfWork"],
             "comment": None,
             "information_source": "Redevelopment Generation",
-            "properties": {}
+            "properties": {},
         }
 
         money_estimation = {
-                "indicator_id": 298,
-                "scenario_id": target_scenario_id,
-                "territory_id": None,
-                "hexagon_id": None,
-                "value": recultivation_data["data"]["recultivation"]["total"]["costOfWork"],
-                "comment": None,
-                "information_source": "Redevelopment Generation",
-                "properties": {}
-            }
+            "indicator_id": 298,
+            "scenario_id": target_scenario_id,
+            "territory_id": None,
+            "hexagon_id": None,
+            "value": recultivation_data["data"]["recultivation"]["total"]["costOfWork"],
+            "comment": None,
+            "information_source": "Redevelopment Generation",
+            "properties": {},
+        }
 
         task_list = [
             indicators_savior_api_service.put_indicator(
-                scenario_id=target_scenario_id,
-                json_data=time_estimation
+                scenario_id=target_scenario_id, json_data=time_estimation
             ),
             indicators_savior_api_service.put_indicator(
-                scenario_id=target_scenario_id,
-                json_data=money_estimation
-            )
+                scenario_id=target_scenario_id, json_data=money_estimation
+            ),
         ]
         await asyncio.gather(*task_list)
         logger.info("Saved all recultivation indicators")
 
     @staticmethod
     async def save_all_landuse(
-            project_scenario_id: int,
+        project_scenario_id: int,
     ) -> None:
         """
         Function puts all landuse data in urban_db
@@ -251,12 +250,11 @@ class IndicatorsSaviorService:
                 "value": float(landuse_estimation[key]),
                 "comment": None,
                 "information_source": "landuse_det",
-                "properties": {}
+                "properties": {},
             }
             async_task_list.append(
                 indicators_savior_api_service.put_indicator(
-                    scenario_id=project_scenario_id,
-                    json_data=first_to_put
+                    scenario_id=project_scenario_id, json_data=first_to_put
                 )
             )
 
@@ -264,10 +262,7 @@ class IndicatorsSaviorService:
         logger.info("Saved all landuse indicators")
 
     async def save_prioc_evaluations(
-            self,
-            scenario_id: int,
-            territory_id: int,
-            territory: dict
+        self, scenario_id: int, territory_id: int, territory: dict
     ) -> None:
         """
         Function calculates parameters and saves result to db
@@ -286,10 +281,7 @@ class IndicatorsSaviorService:
         await self.post_all(evaluations, scenario_id)
         logger.info("Saved prioc evaluations")
 
-    async def save_all_indicators(
-            self,
-            save_params: IndicatorsDTO
-    ):
+    async def save_all_indicators(self, save_params: IndicatorsDTO):
         """
         Function calculates and save all indicators to db
         Args:
@@ -298,11 +290,19 @@ class IndicatorsSaviorService:
             None
         """
 
-        territory_data = await indicators_savior_api_service.get_project_data(save_params.project_id)
-        territory = gpd.GeoDataFrame(geometry=[shape(territory_data["geometry"])], crs=4326)
+        territory_data = await indicators_savior_api_service.get_project_data(
+            save_params.project_id
+        )
+        territory = gpd.GeoDataFrame(
+            geometry=[shape(territory_data["geometry"])], crs=4326
+        )
         territory_geojson = json.loads(territory.to_json())
         territory_id = territory_data["project"]["region"]["id"]
-        base_scenario = await indicators_savior_api_service.get_base_scenario_by_project(save_params.project_id)
+        base_scenario = (
+            await indicators_savior_api_service.get_base_scenario_by_project(
+                save_params.project_id
+            )
+        )
 
         extract_list = [
             indicators_savior_api_service.save_eco_frame_estimation(
@@ -319,23 +319,24 @@ class IndicatorsSaviorService:
             self.save_recultivation(
                 area=territory_data["geometry"],
                 base_scenario_id=base_scenario,
-                target_scenario_id=save_params.scenario_id
+                target_scenario_id=save_params.scenario_id,
             ),
             self.save_potential_and_base_indicators(
-            scenario_id=save_params.scenario_id,
-            territory_id=territory_id,
-            territory=territory_geojson
-            )
+                scenario_id=save_params.scenario_id,
+                territory_id=territory_id,
+                territory=territory_geojson,
+            ),
         ]
         await asyncio.gather(*extract_list)
         await indicators_savior_api_service.save_net_indicators(
-                territory=territory,
-                region_id=territory_id,
-                project_scenario_id=save_params.scenario_id
-            )
-        logger.info(f"Finished saving all indicators with params {save_params.__dict__}")
+            territory=territory,
+            region_id=territory_id,
+            project_scenario_id=save_params.scenario_id,
+        )
+        logger.info(
+            f"Finished saving all indicators with params {save_params.__dict__}"
+        )
         return {"msg": "Successfully saved all indicators"}
-
 
 
 indicators_savior_service = IndicatorsSaviorService()

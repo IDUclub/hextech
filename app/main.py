@@ -1,31 +1,28 @@
 import sys
+
 from fastapi import FastAPI
-from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, RedirectResponse
 from loguru import logger
 
-from .common.config import config
-from .prioc import prioc_router
-from .grid_generator import grid_generator_router
-from .limitations import limitations_router
-from .indicators_savior import indicators_savior_router
+from app.common.exceptions.exception_handler import ExceptionHandlerMiddleware
 
+from .common.config import config
+from .grid_generator import grid_generator_router
+from .indicators_savior import indicators_savior_router
+from .limitations import limitations_router
+from .prioc import prioc_router
 
 logger.remove()
 logger.add(
     sys.stdout,
     format="<green>{time:MM-DD HH:mm}</green> | <level>{level:<8}</level> | <cyan>{message}</cyan>",
     level="INFO",
-    colorize=True
+    colorize=True,
 )
-logger.add(
-    ".log", colorize=False, backtrace=True, diagnose=True
-)
+logger.add(".log", colorize=False, backtrace=True, diagnose=True)
 
-app = FastAPI(
-    title="hextech",
-    description="API for spatial hexagonal analyses"
-)
+app = FastAPI(title="hextech", description="API for spatial hexagonal analyses")
 
 origins = ["*"]
 
@@ -36,6 +33,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(ExceptionHandlerMiddleware)
+
 
 @app.get("/logs")
 async def get_logs():
@@ -45,9 +44,10 @@ async def get_logs():
 
     return FileResponse(
         ".log",
-        media_type='application/octet-stream',
+        media_type="application/octet-stream",
         filename=f"Hextech.log",
     )
+
 
 app.include_router(prioc_router, prefix=config.get("FASTAPI_PREFIX"))
 app.include_router(grid_generator_router, prefix=config.get("FASTAPI_PREFIX"))
