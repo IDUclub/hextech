@@ -1,6 +1,7 @@
 from collections import ChainMap
 
 import geopandas as gpd
+import pandas as pd
 from loguru import logger
 
 from .constants import profiles
@@ -101,7 +102,7 @@ class PotentialEstimator:
             result_list.append(cur_potential)
 
         columns = list(profiles.keys())
-        hexes[columns] = result_list
+        hexes[columns] = pd.DataFrame.from_records(result_list)
         logger.info(f"Finished potential estimation with {len(hexes)} hexes")
 
         return hexes
