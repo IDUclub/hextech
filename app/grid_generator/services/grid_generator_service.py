@@ -266,8 +266,6 @@ class GridGeneratorService:
                         "properties": {}
                         }
                     )
-                else:
-                    print(column, row[column], row["hexagon_id"], int(mapped_name_id[column]))
 
         with open(f"failed_grid_indicators_list.json", "w") as f:
             json.dump(failed_list, f)

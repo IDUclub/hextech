@@ -84,7 +84,7 @@ class PotentialEstimator:
                         }
                     }
                 except Exception as e:
-                    print(e.__str__())
+                    logger.exception(e)
 
         return weights
 
