@@ -266,30 +266,6 @@ class GridGeneratorService:
                         "properties": {}
                         }
                     )
-                elif int(mapped_name_id[column]) in [197, 198, 199, 200, 201]:
-                    failed_object = {
-                        "indicator_id": int(mapped_name_id[column]),
-                        "scenario_id": regional_scenario,
-                        "territory_id": None,
-                        "hexagon_id": int(row["hexagon_id"]),
-                        "value": None,
-                        "comment": "--",
-                        "information_source": "hextech/grid_generator",
-                        "properties": {}
-                        }
-                    failed_list.append(failed_object)
-                else:
-                    failed_object = {
-                        "indicator_id": int(mapped_name_id[column]),
-                        "scenario_id": regional_scenario,
-                        "territory_id": None,
-                        "hexagon_id": int(row["hexagon_id"]),
-                        "value": None,
-                        "comment": "--",
-                        "information_source": "hextech/grid_generator",
-                        "properties": {}
-                        }
-                    failed_list.append(failed_object)
 
         with open(f"failed_grid_indicators_list.json", "w") as f:
             json.dump(failed_list, f)
