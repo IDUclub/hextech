@@ -1,7 +1,7 @@
 from iduconfig import Config
 from otteroad import KafkaConsumerService
 
-from .handlers import ScenarioHandler
+from .handlers import RegionalScenarioHandler, ScenarioHandler
 
 
 class BrokerService:
@@ -18,6 +18,7 @@ class BrokerService:
     async def register_and_start(self):
 
         self.broker_client.register_handler(ScenarioHandler(self.config))
+        self.broker_client.register_handler(RegionalScenarioHandler(self.config))
         self.broker_client.add_worker(topics=["indicator.events"])
 
         await self.broker_client.start()

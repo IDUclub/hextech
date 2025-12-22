@@ -1,1 +1,2 @@
+from .region_scenario_handler import RegionalScenarioHandler
 from .scenario_handler import ScenarioHandler

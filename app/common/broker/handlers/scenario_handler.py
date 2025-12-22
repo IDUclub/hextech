@@ -1,3 +1,4 @@
+from fastapi import HTTPException
 from iduconfig import Config
 from loguru import logger
 from otteroad.consumer import BaseMessageHandler
@@ -43,10 +44,27 @@ class ScenarioHandler(BaseMessageHandler[ScenarioIndicatorsUpdated]):
                 event.indicator_id
             ):
                 print(repr(self.scenarios_events[event.scenario_id]))
-                await save_all_indicators_to_db(scenario_id=event.scenario_id)
-                logger.info(
-                    f"Saved all indicators for scenario {event.scenario_id} from broker message"
-                )
+                try:
+                    await save_all_indicators_to_db(scenario_id=event.scenario_id)
+                    logger.info(
+                        f"Saved all indicators for scenario {event.scenario_id} from broker message"
+                    )
+                except HTTPException as http_e:
+                    if http_e.status_code == 404:
+                        logger.info(
+                            "Scenario with id {} is already deleted. It won't be processed".format(
+                                event.scenario_id
+                            )
+                        )
+                    else:
+                        raise http_e
+                except Exception as e:
+                    logger.exception(e)
+                    logger.error(
+                        "Error during scenario handling. Scenario id {}".format(
+                            event.scenario_id
+                        )
+                    )
 
     async def on_startup(self):
         pass

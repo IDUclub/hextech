@@ -1,5 +1,6 @@
 import asyncio
 
+import pandas as pd
 from loguru import logger
 
 from app.grid_generator.services.potential_estimator import potential_estimator
@@ -8,6 +9,8 @@ from app.indicators_savior.indicators_savior_services.indicators_savior_api_serv
 )
 from app.prioc.services import prioc_service
 
+from ..grid_generator.services.constants.constants import prioc_objects_types
+from ..grid_generator.services.generator_api_service import generator_api_service
 from .indicators_savior_services.indicators_constants import objects_name_id_map
 
 # TODO remove hardcode
@@ -207,6 +210,86 @@ class IndicatorsSaviorService:
         await asyncio.gather(*extract_list)
         logger.info(f"Finished saving all indicators with scenario id {scenario_id}")
         return {"msg": f"Successfully saved all indicators for scenario {scenario_id}"}
+
+    @staticmethod
+    async def save_hexagonal_indicators(regional_scenario_id: int, territory_id: int):
+
+        grid_with_indicators = (
+            await indicators_savior_api_service.get_grid_with_indicators(
+                regional_scenario_id, BASE_INDICATORS_IDS
+            )
+        )
+        bounded_hexagons = await potential_estimator.estimate_potentials(
+            grid_with_indicators
+        )
+        for i in prioc_objects_types:
+            current_object_hexes = await prioc_service.get_hexes_for_object_from_gdf(
+                hexes=bounded_hexagons, territory_id=territory_id, object_type=i
+            )
+            bounded_hexagons = pd.merge(
+                bounded_hexagons,
+                current_object_hexes[["hexagon_id", "weighted_sum"]],
+                on="hexagon_id",
+                how="outer",
+            )
+            if i == "Пром объект":
+                bounded_hexagons.rename(
+                    columns={"weighted_sum": "Промышленная зона"}, inplace=True
+                )
+            elif i == "Логистическо-складской комплекс":
+                bounded_hexagons.rename(
+                    columns={"weighted_sum": "Логистический, складской комплекс"},
+                    inplace=True,
+                )
+            elif i == "Кампус университетский":
+                bounded_hexagons.rename(
+                    columns={"weighted_sum": "Университетский кампус"}, inplace=True
+                )
+            elif i == "Тур база":
+                bounded_hexagons.rename(
+                    columns={"weighted_sum": "Туристическая база"}, inplace=True
+                )
+            else:
+                bounded_hexagons.rename(columns={"weighted_sum": i}, inplace=True)
+        full_map = await generator_api_service.extract_all_indicators()
+        mapped_name_id = {}
+        for item in full_map:
+            if item["name_full"] in bounded_hexagons.columns:
+                mapped_name_id[item["name_full"]] = item["indicator_id"]
+            elif item["name_short"] in bounded_hexagons.columns:
+                mapped_name_id[item["name_short"]] = item["indicator_id"]
+        bounded_hexagons.drop_duplicates("geometry", inplace=True)
+        df_to_put = bounded_hexagons.drop(
+            columns=[
+                column
+                for column in bounded_hexagons.columns
+                if column in ["geometry", "properties"]
+            ]
+        )
+        columns_to_iter = list(df_to_put.drop(columns="hexagon_id").columns)
+        extract_list = []
+        failed_list = []
+        for index, row in df_to_put.iterrows():
+            for column in columns_to_iter:
+                if not pd.isna(row[column]):
+                    extract_list.append(
+                        {
+                            "indicator_id": int(mapped_name_id[column]),
+                            "scenario_id": regional_scenario_id,
+                            "territory_id": None,
+                            "hexagon_id": int(row["hexagon_id"]),
+                            "value": row[column],
+                            "comment": "--",
+                            "information_source": "hextech/grid_generator",
+                            "properties": {},
+                        }
+                    )
+
+        if failed_list:
+            logger.warning("Failed to upload data {}".format(failed_list))
+        await generator_api_service.put_hexagon_data(extract_list, regional_scenario_id)
+
+        return {"msg": f"Successfully uploaded hexagons data for {territory_id}"}
 
 
 indicators_savior_service = IndicatorsSaviorService()

@@ -17,3 +17,11 @@ async def save_all_indicators_to_db(
     """
 
     return await indicators_savior_service.save_all_indicators(scenario_id)
+
+
+@indicators_savior_router.put("/save_regional_scenario")
+async def save_regional_scenario_to_db(regional_scenario_id: int, territory_id: int):
+
+    return await indicators_savior_service.save_hexagonal_indicators(
+        regional_scenario_id, territory_id
+    )

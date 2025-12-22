@@ -1,5 +1,4 @@
 import asyncio
-import json
 
 import aiohttp
 import geopandas as gpd
@@ -9,11 +8,6 @@ from loguru import logger
 
 from app.common import config
 from app.common.api_handler.api_handler import (
-    eco_frame_api_handler,
-    landuse_det_api_handler,
-    pop_frame_api_handler,
-    townsnet_api_handler,
-    transport_frame_api_handler,
     urban_api_handler,
 )
 from app.common.exceptions.http_exception_wrapper import http_exception
@@ -332,6 +326,23 @@ class IndicatorsSaviorApiService:
         for i in response:
             result[i["name_full"]] = i["indicator_id"]
         return result
+
+    async def get_grid_with_indicators(
+        self, regional_scenario_id: int, indicators_list: list[int]
+    ) -> gpd.GeoDataFrame:
+
+        response = await urban_api_handler.get(
+            f"/api/v1/scenarios/{regional_scenario_id}/indicators_values/hexagons",
+            params={"indicator_ids": ",".join([str(i) for i in indicators_list])},
+            headers=self.headers,
+        )
+        gdf = gpd.GeoDataFrame.from_features(response, crs=4326)
+        df_data = gdf["indicators"].apply(
+            lambda x: {i["name_full"]: i["value"] for i in x}
+        )
+        indicators_df = pd.DataFrame.from_records(df_data.to_list())
+        gdf = pd.concat([gdf, indicators_df], axis=1).drop(columns="indicators")
+        return gdf
 
 
 indicators_savior_api_service = IndicatorsSaviorApiService()
