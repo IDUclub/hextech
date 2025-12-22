@@ -1,0 +1,1 @@
+from .region_indicators_events.region_indicators_events import ScenarioIndicatorsEvent
