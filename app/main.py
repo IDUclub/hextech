@@ -1,13 +1,16 @@
 import sys
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse
+from iduconfig import Config
 from loguru import logger
+from otteroad import KafkaConsumerService, KafkaConsumerSettings
 
+from app.common.broker.broker_service import BrokerService
 from app.common.exceptions.exception_handler import ExceptionHandlerMiddleware
 
-from .common.config import config
 from .grid_generator import grid_generator_router
 from .indicators_savior import indicators_savior_router
 from .limitations import limitations_router
@@ -22,7 +25,24 @@ logger.add(
 )
 logger.add(".log", colorize=False, backtrace=True, diagnose=True)
 
-app = FastAPI(title="hextech", description="API for spatial hexagonal analyses")
+config = Config()
+consumer_settings = KafkaConsumerSettings.from_env()
+
+broker_client = KafkaConsumerService(consumer_settings)
+broker_service = BrokerService(config, broker_client)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+
+    await broker_service.register_and_start()
+    yield
+    await broker_service.stop()
+
+
+app = FastAPI(
+    lifespan=lifespan, title="hextech", description="API for spatial hexagonal analyses"
+)
 
 origins = ["*"]
 
