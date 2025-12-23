@@ -17,3 +17,4 @@ shapely~=2.0.6
 h3~=4.1.2
 otteroad~=0.2.2
 tqdm~=4.67.1
+idu_config~=1.0.1
