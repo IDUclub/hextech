@@ -9,11 +9,15 @@ from loguru import logger
 from otteroad import KafkaConsumerService, KafkaConsumerSettings
 
 from app.common.broker.broker_service import BrokerService
-from app.common.exceptions.exception_handler import ExceptionHandlerMiddleware
+from app.common.middlewares.exception_handler import ExceptionHandlerMiddleware
 
+from .__version__ import APP_VERSION
+from .common.middlewares.prometheus_handler import ObservabilityMiddleware
 from .grid_generator import grid_generator_router
 from .indicators_savior import indicators_savior_router
 from .limitations import limitations_router
+from .observability import OpenTelemetryAgent, PrometheusConfig
+from .observability.metrics import setup_metrics
 from .prioc import prioc_router
 
 logger.remove()
@@ -30,18 +34,28 @@ consumer_settings = KafkaConsumerSettings.from_env()
 
 broker_client = KafkaConsumerService(consumer_settings)
 broker_service = BrokerService(config, broker_client)
+metrics = setup_metrics()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-
+    otel_agent = OpenTelemetryAgent(
+        prometheus_config=PrometheusConfig(
+            host="0.0.0.0",
+            port=int(config.get("PROMETHEUS_PORT")),
+        ),
+    )
     await broker_service.register_and_start()
     yield
     await broker_service.stop()
+    otel_agent.shutdown()
 
 
 app = FastAPI(
-    lifespan=lifespan, title="hextech", description="API for spatial hexagonal analyses"
+    lifespan=lifespan,
+    version=APP_VERSION,
+    title="hextech",
+    description="API for spatial hexagonal analyses",
 )
 
 origins = ["*"]
@@ -53,7 +67,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-app.add_middleware(ExceptionHandlerMiddleware)
+app.add_middleware(ExceptionHandlerMiddleware, metrics=metrics)
+app.add_middleware(ObservabilityMiddleware, metrics=metrics)
 
 
 @app.get("/logs")
