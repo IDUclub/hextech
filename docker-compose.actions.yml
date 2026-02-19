@@ -3,7 +3,8 @@ services:
     image: ${IMAGE}
     container_name: ${CONTAINER_NAME}
     ports:
-      - 8200:80
+      - "8200:80"
+      - "9464:9464"
     env_file:
       - .env.production
     restart: always
