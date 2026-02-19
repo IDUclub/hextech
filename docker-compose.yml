@@ -1,10 +1,11 @@
 version: '3.4'
 
 services:
-  hexteck:
+  hextech:
     image: hexteck:dev
     build:
       context: .
       dockerfile: ./Dockerfile
     ports:
-      - 80:80
+      - "80:80"
+      - "9464:9464"
